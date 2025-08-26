@@ -56,10 +56,3 @@ stages:
         buildNumber: $(buildNumber)
         buildArgs: '--secret id=npmrc,src=.npmrc' # Pass the .npmrc file as a secret
 
-    # Step 4: Publish the collected build information
-    - task: JFrogBuildPublish@1
-      displayName: 'Publish Build Info to Artifactory'
-      inputs:
-        artifactoryConnection: $(artifactoryServiceConnection)
-        buildName: $(buildName)
-        buildNumber: $(buildNumber)
