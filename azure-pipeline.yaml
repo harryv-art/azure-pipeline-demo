@@ -1,40 +1,24 @@
-# Starter pipeline to build and push a Docker image to JFrog Artifactory
+# Pipeline to build a Docker image, resolving npm packages from Artifactory using secrets
 
 trigger:
-- main # Trigger the pipeline on commits to the main branch
+- main
 
 pool:
-  vmImage: 'ubuntu-latest' # Use a Microsoft-hosted agent
+  vmImage: 'ubuntu-latest'
 
 variables:
   # --- User-configurable variables ---
-
-  # Name of your JFrog Artifactory service connection in Azure DevOps
-  artifactoryServiceConnection: 'artifactory-connection'
-
-  # The target Docker repository in Artifactory to push the final image
+  artifactoryServiceConnection: 'Harryv1Artifactory'
   artifactoryDockerRepo: 'harryv-docker'
-
-  # The name for your Docker image.
-  # Example: 'my-awesome-app'
+  artifactoryNpmRepo: 'harryv-npm' # Your npm repository in Artifactory
   imageName: 'my-web-app'
-
-  # The source code directory containing the Dockerfile
   buildContext: '$(Build.Repository.LocalPath)'
 
   # --- System-generated variables ---
-
-  # A unique tag for the Docker image, using the pipeline's build number
   imageTag: '$(Build.BuildNumber)'
-
-  # The name for the build record in Artifactory
   buildName: '$(Build.DefinitionName)'
-
-  # The number for the build record in Artifactory
   buildNumber: '$(Build.BuildNumber)'
 
-
-# Define the pipeline stages and jobs
 stages:
 - stage: BuildAndPushToArtifactory
   displayName: 'Build and Push Docker Image'
@@ -43,15 +27,24 @@ stages:
     displayName: 'Build, Push, and Publish'
     steps:
     
-    # Step 1: Install the JFrog CLI on the agent
-    - task: JFrogToolsInstaller@2
+    # Step 1: Install the JFrog CLI
+    - task: JFrogToolsInstaller@1
       displayName: 'Install JFrog CLI'
       inputs:
         cliVersion: '2'
 
-    # Step 2: Build the Docker image and push it to Artifactory
-    # This task will run 'npm install' inside the container as defined in the Dockerfile.
-    - task: JFrogDocker@2
+    # Step 2: Generate .npmrc for Artifactory
+    # This creates a temporary .npmrc file with auth tokens for your npm repo.
+    - task: JFrogCli@1
+      displayName: 'Generate .npmrc for Artifactory'
+      inputs:
+        artifactoryConnection: $(artifactoryServiceConnection)
+        command: |
+          jfrog npm-config --repo-resolve $(artifactoryNpmRepo)
+
+    # Step 3: Build and Push Docker Image with Secrets
+    # We pass the generated .npmrc file as a build secret.
+    - task: JFrogDocker@1
       displayName: 'Build and Push Docker Image to Artifactory'
       inputs:
         command: 'Push'
@@ -61,14 +54,5 @@ stages:
         buildContext: $(buildContext)
         buildName: $(buildName)
         buildNumber: $(buildNumber)
-
-    # Step 3: Publish the collected build information to Artifactory
-    # This will publish info about the Docker image, but not the individual npm packages.
-    - task: JFrogBuildPublish@2
-      displayName: 'Publish Build Info to Artifactory'
-      inputs:
-        artifactoryConnection: $(artifactoryServiceConnection)
-        buildName: $(buildName)
-        buildNumber: $(buildNumber)
-
+        buildArgs: '--secret id=npmrc,src=.npmrc' # Pass the .npmrc file as a secret
 
