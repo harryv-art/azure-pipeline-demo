@@ -8,7 +8,7 @@ pool:
 
 variables:
   # --- User-configurable variables ---
-  artifactoryServiceConnection: 'artifactory-connection'
+  artifactoryServiceConnection: 'Harryv1Artifactory'
   artifactoryDockerRepo: 'harryv-docker'
   artifactoryNpmRepo: 'harryv-npm' # Your npm repository in Artifactory
   imageName: 'my-web-app'
@@ -55,4 +55,3 @@ stages:
         buildName: $(buildName)
         buildNumber: $(buildNumber)
         buildArgs: '--secret id=npmrc,src=.npmrc' # Pass the .npmrc file as a secret
-
