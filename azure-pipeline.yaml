@@ -1,0 +1,74 @@
+# Starter pipeline to build and push a Docker image to JFrog Artifactory
+
+trigger:
+- main # Trigger the pipeline on commits to the main branch
+
+pool:
+  vmImage: 'ubuntu-latest' # Use a Microsoft-hosted agent
+
+variables:
+  # --- User-configurable variables ---
+
+  # Name of your JFrog Artifactory service connection in Azure DevOps
+  artifactoryServiceConnection: 'artifactory-connection'
+
+  # The target Docker repository in Artifactory to push the final image
+  artifactoryDockerRepo: 'harryv-docker'
+
+  # The name for your Docker image.
+  # Example: 'my-awesome-app'
+  imageName: 'my-web-app'
+
+  # The source code directory containing the Dockerfile
+  buildContext: '$(Build.Repository.LocalPath)'
+
+  # --- System-generated variables ---
+
+  # A unique tag for the Docker image, using the pipeline's build number
+  imageTag: '$(Build.BuildNumber)'
+
+  # The name for the build record in Artifactory
+  buildName: '$(Build.DefinitionName)'
+
+  # The number for the build record in Artifactory
+  buildNumber: '$(Build.BuildNumber)'
+
+
+# Define the pipeline stages and jobs
+stages:
+- stage: BuildAndPushToArtifactory
+  displayName: 'Build and Push Docker Image'
+  jobs:
+  - job: DockerBuild
+    displayName: 'Build, Push, and Publish'
+    steps:
+    
+    # Step 1: Install the JFrog CLI on the agent
+    - task: JFrogToolsInstaller@2
+      displayName: 'Install JFrog CLI'
+      inputs:
+        cliVersion: '2'
+
+    # Step 2: Build the Docker image and push it to Artifactory
+    # This task will run 'npm install' inside the container as defined in the Dockerfile.
+    - task: JFrogDocker@2
+      displayName: 'Build and Push Docker Image to Artifactory'
+      inputs:
+        command: 'Push'
+        artifactoryConnection: $(artifactoryServiceConnection)
+        repository: $(artifactoryDockerRepo)
+        imageName: '$(imageName):$(imageTag)'
+        buildContext: $(buildContext)
+        buildName: $(buildName)
+        buildNumber: $(buildNumber)
+
+    # Step 3: Publish the collected build information to Artifactory
+    # This will publish info about the Docker image, but not the individual npm packages.
+    - task: JFrogBuildPublish@2
+      displayName: 'Publish Build Info to Artifactory'
+      inputs:
+        artifactoryConnection: $(artifactoryServiceConnection)
+        buildName: $(buildName)
+        buildNumber: $(buildNumber)
+
+
